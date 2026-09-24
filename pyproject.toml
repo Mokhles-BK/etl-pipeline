@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "etl-pipeline"
+version = "0.1.0"
+description = "Scheduled ETL: public API -> Postgres staging -> warehouse -> dashboard"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    # Pinned to the Airflow 2.10.5 / Python 3.12 constraints so the manual
+    # CLI and the Airflow runtime share one working dependency set.
+    "requests==2.32.3",
+    "psycopg2-binary==2.9.10",
+    "python-dotenv==1.0.1",
+    "pydantic==2.10.6",
+    "pandas>=2.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.setuptools]
+packages = ["etl", "etl.sources"]
+
+[tool.setuptools.package-dir]
+etl = "scripts/etl"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: tests that require a live Postgres connection",
+]

@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+
+# Tests / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local config
+.env
+
+# Airflow runtime (local, not versioned)
+airflow/airflow.db
+airflow/logs/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+CLAUDE.md

@@ -1,0 +1,15 @@
+# Airflow runtime dependencies for the etl-pipeline.
+# Versions are pinned to apache-airflow 2.10.5's official constraints for
+# Python 3.12 (https://github.com/apache/airflow/tree/constraints-2.10.5),
+# so the whole stack installs without resolver conflicts.
+# Install with:
+#   pip install -r requirements-airflow.txt \
+#     --constraint https://raw.githubusercontent.com/apache/airflow/\
+#       constraints-2.10.5/constraints-3.12.txt
+apache-airflow==2.10.5
+apache-airflow-providers-postgres==6.0.0
+apache-airflow-providers-common-sql==1.21.0
+psycopg2-binary==2.9.10
+python-dotenv==1.0.1
+pydantic==2.10.6
+requests==2.32.3
