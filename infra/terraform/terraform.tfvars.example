@@ -1,0 +1,6 @@
+# Copy to terraform.tfvars (git-ignored) and edit. Alternatively set the
+# TF_VAR_db_password environment variable instead of writing it to a file.
+db_password = "change-me-please"
+
+# Linux / macOS:
+# docker_host = "unix:///var/run/docker.sock"

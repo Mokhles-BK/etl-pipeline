@@ -108,6 +108,7 @@ etl-pipeline/
 ├── .github/workflows/ci.yml     # runs the test suite against Postgres on every push
 ├── .env.example                 # copy to .env and fill in
 ├── pyproject.toml
+├── infra/terraform/             # Terraform: local Postgres via the Docker provider
 ├── dags/
 │   └── etl_dag.py               # Airflow DAG: load >> transform_warehouse
 ├── dashboard/
@@ -133,6 +134,14 @@ etl-pipeline/
 │       └── usgs_earthquakes.py
 └── tests/
 ```
+
+## Infrastructure
+
+`infra/terraform/` provisions the Postgres database as code (Docker provider:
+image, persistent volume, localhost-only port, healthcheck), so the environment
+can be created or destroyed with `terraform apply` / `terraform destroy`. See
+[`infra/terraform/README.md`](infra/terraform/README.md). CI runs
+`terraform validate` on every push.
 
 ## Data source
 

@@ -46,3 +46,19 @@ jobs:
 
       - name: Run tests
         run: pytest tests/ -v
+
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Init (no backend, no cloud credentials needed)
+        run: terraform init -backend=false
+
+      - name: Validate
+        run: terraform validate
