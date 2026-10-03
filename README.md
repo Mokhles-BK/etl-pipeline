@@ -32,6 +32,75 @@ USGS Earthquake API (GeoJSON)
 The Airflow DAG `etl_usgs_earthquakes_load` runs daily: `load_usgs_earthquakes`
 then `transform_warehouse`. The transform only runs if the load succeeds.
 
+## Data model
+
+```mermaid
+erDiagram
+    dim_time ||--o{ fact_earthquake_events : "date_key"
+    dim_location |o--o{ fact_earthquake_events : "location_key"
+    dim_magnitude_type |o--o{ fact_earthquake_events : "mag_type_key"
+
+    dim_time {
+        int date_key PK "YYYYMMDD"
+        date full_date UK
+        smallint year
+        smallint month
+        smallint day
+        smallint day_of_week "0=Sunday"
+        text month_name
+    }
+
+    dim_location {
+        bigint location_key PK
+        text region "parsed from USGS place"
+        int lat_bucket "floored degrees"
+        int lon_bucket "floored degrees"
+    }
+
+    dim_magnitude_type {
+        int mag_type_key PK
+        text mag_type UK "mww, mb, ml, ..."
+    }
+
+    fact_earthquake_events {
+        text event_id PK "natural key"
+        int date_key FK
+        bigint location_key FK
+        int mag_type_key FK
+        double mag
+        double depth
+        double sig
+        double felt
+        int nst
+        double gap
+        double dmin
+        double rms
+        double tsunami
+        bigint event_time "epoch ms"
+        timestamptz loaded_at
+    }
+```
+
+One fact row per event, at the same grain as `staging.earthquakes`.
+Design notes:
+
+- **Dimensions are immutable.** They are insert-if-missing
+  (`ON CONFLICT DO NOTHING`); the fact table upserts on `event_id` because USGS
+  revises events after the fact.
+- **`dim_location` is a coarse bucket**, not one row per coordinate: the region
+  is parsed from the USGS `place` text and latitude/longitude are floored to
+  whole degrees, so nearby events group together instead of never matching on
+  float precision. `location_key` and `mag_type_key` are nullable on the fact
+  table for events that lack that information.
+- **Indexes** match what the dashboard queries: filtering and aggregating by
+  date and by magnitude, and joining out to each dimension. There are
+  indexes on `date_key`, `location_key`, `mag_type_key` and `mag`. The fact
+  table is a few thousand rows per month, so partitioning is not needed yet;
+  if it grew to tens of millions of rows, partitioning by `date_key` is the
+  natural next step.
+
+Full rationale for both schemas is in [`sql/sql_README.md`](sql/sql_README.md).
+
 ## Layout
 
 ```
