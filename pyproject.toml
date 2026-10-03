@@ -20,6 +20,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+dashboard = ["streamlit>=1.40", "plotly>=5.20"]
 
 [tool.setuptools]
 packages = ["etl", "etl.sources"]

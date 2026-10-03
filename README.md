@@ -63,3 +63,10 @@ Rows that fail source validation (missing event_id, non-numeric magnitude,
 malformed geometry) are routed to `staging.load_errors` instead of crashing
 the load. The error table is keyed on `(entity, source_id)` so re-rejecting
 the same bad row does not duplicate the error row.
+
+## Dashboard
+
+Reads from the warehouse star schema (read-only):
+
+    pip install -e ".[dashboard]"
+    streamlit run dashboard/app.py
