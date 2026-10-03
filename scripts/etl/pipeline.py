@@ -23,6 +23,7 @@ from etl.loader import (
     write_cursors,
 )
 from etl.models import NormalizedRecord
+from etl.runlog import finish_load, start_clock
 from etl.sources import Source
 
 log = logging.getLogger("etl.pipeline")
@@ -48,6 +49,7 @@ def run(source: Source, since: int | None = None, batch_id: uuid.UUID | None = N
     """Execute one full load cycle for the given source."""
     batch_id = batch_id or uuid.uuid4()
     report = LoadReport(batch_id=str(batch_id))
+    clock = start_clock()
 
     conn = None
     try:
@@ -75,6 +77,7 @@ def run(source: Source, since: int | None = None, batch_id: uuid.UUID | None = N
         log.exception("load failed")
     finally:
         if conn is not None:
+            finish_load(conn, clock, getattr(source, "name", None), report)
             conn.close()
 
     return report
@@ -91,6 +94,7 @@ def run_incremental(source: Source, conn, batch_id: uuid.UUID | None = None) -> 
     """
     batch_id = batch_id or uuid.uuid4()
     report = LoadReport(batch_id=str(batch_id))
+    clock = start_clock()
 
     try:
         ensure_schema(conn)
@@ -117,4 +121,5 @@ def run_incremental(source: Source, conn, batch_id: uuid.UUID | None = None) -> 
         report.errors.append(f"{type(exc).__name__}: {exc}")
         log.exception("incremental load failed")
 
+    finish_load(conn, clock, getattr(source, "name", None), report)
     return report

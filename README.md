@@ -111,10 +111,12 @@ etl-pipeline/
 ├── dags/
 │   └── etl_dag.py               # Airflow DAG: load >> transform_warehouse
 ├── dashboard/
-│   └── app.py                   # Streamlit dashboard
+│   ├── app.py                   # Streamlit dashboard
+│   └── pages/1_Pipeline_Health.py  # run history, success rate, freshness
 ├── sql/
 │   ├── staging_schema.sql       # idempotent staging tables
 │   ├── warehouse_schema.sql     # idempotent star schema
+│   ├── monitoring_schema.sql    # run log table for pipeline monitoring
 │   └── sql_README.md            # design rationale for both schemas
 ├── scripts/etl/
 │   ├── config.py                # env config, validated lazily on first use
@@ -123,6 +125,8 @@ etl-pipeline/
 │   ├── loader.py                # staging writer (upsert, batch-tagged)
 │   ├── pipeline.py              # run() and run_incremental()
 │   ├── warehouse.py             # staging -> star schema transform
+│   ├── alerts.py                # webhook alerts (Slack/Discord) on task failure
+│   ├── runlog.py                # writes one row per load/transform run to monitoring.pipeline_runs
 │   ├── cli.py                   # python -m etl.cli
 │   └── sources/
 │       ├── __init__.py          # Source ABC
@@ -168,6 +172,40 @@ and calls the same code as the CLI. To run it once without a scheduler:
 AIRFLOW__CORE__DAGS_FOLDER=<path to>/etl-pipeline/dags airflow dags test etl_usgs_earthquakes_load 2026-09-25
 ```
 
+## Monitoring
+
+Every load and every warehouse transform writes one row to
+`monitoring.pipeline_runs` (stage, start/finish time, duration, success flag,
+records fetched/loaded/rejected, error text). This works the same from the CLI
+and from Airflow, because it is recorded inside `run()`, `run_incremental()`
+and `run_transform()`. The dashboard's **Pipeline health** page reads it and
+shows:
+
+- the latest run per stage, with a failure's error message
+- a staleness warning if there has been no successful run for 36 hours
+  (the DAG is daily)
+- success rate, average duration and rejected rows over a chosen window
+- records loaded per day and duration over time
+- a list of failures and the 50 most recent runs
+
+Run logging never breaks a run: if the log cannot be written, a warning is
+logged and the pipeline carries on. Set `ETL_RUNLOG=off` to disable it (the
+test suite does this by default so tests do not pollute the history).
+
+## Alerts
+
+When a DAG task fails after all its retries, Airflow posts a message (DAG, task,
+run id, error, log link) to a Slack or Discord incoming webhook. The URL is read
+from the `ALERT_WEBHOOK_URL` environment variable, or from the Airflow Variable
+`alert_webhook_url`:
+
+```bash
+airflow variables set alert_webhook_url "<your webhook url>"
+```
+
+With no webhook configured the alert is skipped, and a failed alert never hides
+the task failure itself.
+
 ## Idempotency
 
 Every entity has a natural key (`event_id` for earthquakes) and the loader
@@ -183,7 +221,7 @@ the same bad row does not duplicate the error row.
 
 ## Tests
 
-`pytest tests/ -v` covers model validation, source pagination, idempotent
+`pytest tests/ -v` covers model validation, run logging, source pagination, idempotent
 loads, cursor handling, the warehouse transform, and a regression test that
 the incremental load creates the schema on a fresh database. CI runs the
 suite on every push against a Postgres service container.

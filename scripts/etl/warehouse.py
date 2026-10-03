@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from etl.db import execute, fetchone, table_exists
+from etl.runlog import finish_transform, start_clock
 
 log = logging.getLogger("etl.warehouse")
 
@@ -150,6 +151,7 @@ def run_transform(conn) -> TransformReport:
     """Run the full staging -> warehouse transform. Dimensions before fact,
     since the fact upsert joins against them to resolve foreign keys."""
     report = TransformReport()
+    clock = start_clock()
     try:
         ensure_warehouse_schema(conn)
         report.dim_time = transform_dim_time(conn)
@@ -164,6 +166,7 @@ def run_transform(conn) -> TransformReport:
     except Exception as exc:  # pragma: no cover - surfaced via report
         report.errors.append(f"{type(exc).__name__}: {exc}")
         log.exception("warehouse transform failed")
+    finish_transform(conn, clock, report)
     return report
 
 

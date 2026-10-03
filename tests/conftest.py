@@ -12,6 +12,9 @@ from __future__ import annotations
 import os
 
 os.environ.setdefault("PGSSLMODE", "disable")
+# Keep the real run history clean: tests must not write to monitoring.pipeline_runs
+# unless they opt in (see tests/test_runlog.py).
+os.environ.setdefault("ETL_RUNLOG", "off")
 
 import pytest
 
@@ -38,6 +41,7 @@ def _apply_schemas():
     try:
         apply_sql_file(conn, str(root / "sql" / "staging_schema.sql"))
         apply_sql_file(conn, str(root / "sql" / "warehouse_schema.sql"))
+        apply_sql_file(conn, str(root / "sql" / "monitoring_schema.sql"))
     finally:
         conn.close()
     yield
