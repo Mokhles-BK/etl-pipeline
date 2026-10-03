@@ -1,4 +1,8 @@
-"""CLI entry point: `python -m etl.cli` runs one load cycle."""
+"""CLI entry point: `python -m etl.cli` runs one load cycle.
+
+`python -m etl.warehouse` runs the warehouse transform on its own; pass
+--with-warehouse here to chain it immediately after a successful load.
+"""
 
 from __future__ import annotations
 
@@ -25,6 +29,11 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Cursor: only load events with time > this (epoch ms)",
     )
+    parser.add_argument(
+        "--with-warehouse",
+        action="store_true",
+        help="Run the staging -> warehouse transform immediately after a successful load.",
+    )
     parser.add_argument("--verbose", action="store_true", help="Enable debug logging")
     args = parser.parse_args(argv)
 
@@ -50,6 +59,24 @@ def main(argv: list[str] | None = None) -> int:
     if report.errors:
         print("errors:", *report.errors, sep="\n  ", file=sys.stderr)
         return 1
+
+    if args.with_warehouse and report.ok:
+        from etl.db import connect
+        from etl.warehouse import run_transform
+
+        conn = connect()
+        try:
+            wh_report = run_transform(conn)
+        finally:
+            conn.close()
+        print(f"warehouse dim_time:             {wh_report.dim_time}")
+        print(f"warehouse dim_location:         {wh_report.dim_location}")
+        print(f"warehouse dim_magnitude_type:   {wh_report.dim_magnitude_type}")
+        print(f"warehouse fact_earthquake_events: {wh_report.fact_earthquake_events}")
+        if wh_report.errors:
+            print("warehouse errors:", *wh_report.errors, sep="\n  ", file=sys.stderr)
+            return 1
+
     return 0 if report.ok else 1
 
 
