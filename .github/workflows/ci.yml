@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: etluser
+          POSTGRES_PASSWORD: devpass
+          POSTGRES_DB: etl
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U etluser -d etl"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: "5432"
+      DB_NAME: etl
+      DB_USER: etluser
+      DB_PASSWORD: devpass
+      USGS_BASE_URL: https://earthquake.usgs.gov/fdsnws/event/1
+      USGS_MIN_MAGNITUDE: "1.0"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package and test dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Run tests
+        run: pytest tests/ -v
