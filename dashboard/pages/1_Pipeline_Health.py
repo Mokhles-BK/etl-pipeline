@@ -118,7 +118,7 @@ with left:
     else:
         per_day = loads.groupby("day")[["records_loaded", "records_rejected"]].sum().reset_index()
         st.plotly_chart(
-            px.bar(per_day, x="day", y=["records_loaded", "records_rejected"], barmode="group"),
+            px.bar(per_day, x="day", y=["records_loaded", "records_rejected"], barmode="group",labels={"value": "rows", "variable": ""}),
             width="stretch",
         )
 with right:
