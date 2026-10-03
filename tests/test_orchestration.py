@@ -113,3 +113,34 @@ def test_dag_loads_real_source_incrementally():
         assert read_cursors(conn) == cursors  # cursors stable
     finally:
         conn.close()
+
+
+def test_run_incremental_ensures_schema_before_reading_cursors(monkeypatch):
+    """Regression: on a fresh DB, run_incremental must create the schema first.
+
+    Without ensure_schema(), read_cursors() hit 'relation staging.earthquakes
+    does not exist' when Airflow pointed at an empty database.
+    """
+    import etl.pipeline as pipeline
+
+    calls = []
+
+    def fake_ensure_schema(conn):
+        calls.append("ensure_schema")
+
+    def fake_read_cursors(conn):
+        calls.append("read_cursors")
+        return {}
+
+    monkeypatch.setattr(pipeline, "ensure_schema", fake_ensure_schema)
+    monkeypatch.setattr(pipeline, "read_cursors", fake_read_cursors)
+    monkeypatch.setattr(pipeline, "load_counts", lambda conn: [])
+    monkeypatch.setattr(pipeline, "error_counts", lambda conn: [])
+
+    class EmptySource:
+        name = "empty"
+        errors = []
+
+    pipeline.run_incremental(EmptySource(), conn=None)
+
+    assert calls[:2] == ["ensure_schema", "read_cursors"]

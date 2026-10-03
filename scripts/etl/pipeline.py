@@ -93,6 +93,7 @@ def run_incremental(source: Source, conn, batch_id: uuid.UUID | None = None) -> 
     report = LoadReport(batch_id=str(batch_id))
 
     try:
+        ensure_schema(conn)
         cursors = read_cursors(conn)
         cursor_field = getattr(source, "cursor_field", "id")
         # One cursor per entity: a global max would skip records whose value
