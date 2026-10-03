@@ -24,14 +24,35 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
+from etl.alerts import notify_failure
 from etl.pipeline import run_incremental
 from etl.sources.usgs_earthquakes import USGSEarthquakes
 from etl.warehouse import run_transform
 
 log = logging.getLogger("etl.dag")
 
+def _alert_on_failure(context) -> None:
+    """Send a webhook alert when a task fails after all retries.
+
+    The URL comes from the ALERT_WEBHOOK_URL env var, or else from the Airflow
+    Variable `alert_webhook_url`. If neither is set the alert is skipped.
+    """
+    import os
+
+    url = os.environ.get("ALERT_WEBHOOK_URL")
+    if not url:
+        try:
+            from airflow.models import Variable
+
+            url = Variable.get("alert_webhook_url", default_var=None)
+        except Exception:  # noqa: BLE001 - alerting must never break the callback
+            url = None
+    notify_failure(context, webhook_url=url)
+
+
 DEFAULT_ARGS = {
     "owner": "etl",
+    "on_failure_callback": _alert_on_failure,
     "depends_on_past": False,
     "retries": 2,
     "retry_delay": timedelta(minutes=5),
